@@ -18,7 +18,6 @@ def get_tokens_for_user(user):
         "access": str(refresh.access_token),
     }
 
-
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = RegisterSerializer
@@ -28,11 +27,11 @@ class RegisterView(generics.CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        tokens = get_tokens_for_user(user)
-        return Response ({
+        return Response({
             "user": UserSerializer(user).data,
-            "tokens": tokens,
+            "tokens": get_tokens_for_user(user),
         }, status=status.HTTP_201_CREATED)
+
 
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -41,22 +40,21 @@ class LoginView(APIView):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data["user"]
-        tokens = get_tokens_for_user(user)
         return Response({
             "user": UserSerializer(user).data,
-            "tokens": tokens,
+            "tokens": get_tokens_for_user(user),
         })
+
 
 class LogoutView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
         try:
-            refresh_token = request.data['refresh']
-            token = RefreshToken(refresh_token)
+            token = RefreshToken(request.data["refresh"])
             token.blacklist()
             return Response({"detail": "Успешный выход"})
-        except Exception as e:
+        except TokenError:
             return Response(
                 {"detail": "Токен уже недействителен"},
                 status=status.HTTP_400_BAD_REQUEST
@@ -89,7 +87,7 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 class DeactivateUserView(APIView):
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [IsModeratorOrAdmin]
 
     def post(self, request, pk):
         try:
@@ -110,6 +108,7 @@ class GoogleAuthURLView(APIView):
         url = get_google_auth_url()
         return Response({"url": url})
 
+
 class GoogleCallbackView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -123,6 +122,7 @@ class GoogleCallbackView(APIView):
             )
 
         token_data = exchange_code_for_token(code)
+
         if "error" in token_data:
             return Response(
                 {"detail": token_data["error"]},
@@ -141,7 +141,7 @@ class GoogleCallbackView(APIView):
 
         user, created = User.objects.get_or_create(
             email=email,
-            default={
+            defaults={
                 "first_name": user_info.get("given_name", ""),
                 "last_name": user_info.get("family_name", ""),
                 "is_active": True,
@@ -150,7 +150,6 @@ class GoogleCallbackView(APIView):
 
         return Response({
             "user": UserSerializer(user).data,
-            "tokens":get_tokens_for_user(user),
-            "created": created
+            "tokens": get_tokens_for_user(user),
+            "created": created,  
         })
-
