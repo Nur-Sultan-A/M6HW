@@ -7,6 +7,8 @@ from .views import (
     UserListView,
     UserDetailView,
     DeactivateUserView,
+    GoogleAuthURLView,
+    GoogleCallbackView,
 )
 
 urlpatterns = [
@@ -17,4 +19,6 @@ urlpatterns = [
     path("", UserListView.as_view(), name="user-list"),
     path("<int:pk>/", UserDetailView.as_view(), name="user-detail"),
     path("<int:pk>/deactivate/", DeactivateUserView.as_view(), name="deactivate"),
-]
+    path("auth/google/", GoogleAuthURLView.as_view(), name="google-auth"),
+    path("auth/google/callback/", GoogleCallbackView.as_view(), name="google-callback"),
+]   

@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+from decouple import config
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -122,3 +123,7 @@ SIMPLE_JWT = {
     "BLACKLIST_AFTER_ROTATION": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
+
+GOOGLE_CLIENT_ID=config("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET=config("GOOGLE_CLIENT_SECRET")
+GOOGLE_REDIRECT_URI=config("GOOGLE_REDIRECT_URI")

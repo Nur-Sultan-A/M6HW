@@ -1,12 +1,15 @@
 asgiref==3.11.1
+certifi==2026.2.25
+charset-normalizer==3.4.7
 Django==6.0.3
 djangorestframework==3.17.1
-<<<<<<< HEAD
 djangorestframework_simplejwt==5.5.1
+idna==3.11
 pillow==12.1.1
 PyJWT==2.12.1
+python-decouple==3.8
 python-dotenv==1.2.2
-=======
-pillow==12.1.1
->>>>>>> d1a138b364d5d399a5131edfb9989a6bbe865708
+requests==2.33.1
 sqlparse==0.5.5
+tzdata==2025.3
+urllib3==2.6.3

@@ -1,4 +1,4 @@
-from django.conf.locale import sr
+from django.contrib.auth.tokens import default_token_generator
 from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -7,6 +7,7 @@ from rest_framework_simplejwt.exceptions import TokenError
 from django.contrib.auth import get_user_model
 from .serializers import RegisterSerializer, LoginSerializer, UserSerializer
 from .permissions import IsAdmin, IsOwnerOrAdmin, IsModeratorOrAdmin
+from .google import get_google_auth_url, exchange_code_for_token, get_google_user_info
 
 User = get_user_model()
 
@@ -101,3 +102,55 @@ class DeactivateUserView(APIView):
                 {"detail": "Не найден"},
                 status=status.HTTP_404_NOT_FOUND
             )
+
+class GoogleAuthURLView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        url = get_google_auth_url()
+        return Response({"url": url})
+
+class GoogleCallbackView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        code = request.query_params.get("code")
+
+        if not code:
+            return Response(
+                {"detail": "code не передан"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        token_data = exchange_code_for_token(code)
+        if "error" in token_data:
+            return Response(
+                {"detail": token_data["error"]},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        google_access_token = token_data.get("access_token")
+        user_info = get_google_user_info(google_access_token)
+
+        email = user_info.get("email")
+        if not email:
+            return Response(
+                {"detail": "Не удалось получить email от Google"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user, created = User.objects.get_or_create(
+            email=email,
+            default={
+                "first_name": user_info.get("given_name", ""),
+                "last_name": user_info.get("family_name", ""),
+                "is_active": True,
+            }
+        )
+
+        return Response({
+            "user": UserSerializer(user).data,
+            "tokens":get_tokens_for_user(user),
+            "created": created
+        })
+
