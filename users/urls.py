@@ -11,7 +11,6 @@ urlpatterns = [
     path("auth/register/", RegisterView.as_view(), name="register"),
     path("auth/login/", LoginView.as_view(), name="login"),
     path("auth/logout/", LogoutView.as_view(), name="logout"),
-
     path("auth/google/", GoogleAuthURLView.as_view(), name="google-auth"),
     path("auth/google/callback/", GoogleCallbackView.as_view(), name="google-callback"),
     path("me/", MeView.as_view(), name="me"),
