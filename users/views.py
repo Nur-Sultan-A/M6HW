@@ -201,6 +201,7 @@ class GoogleCallbackView(APIView):
         user_info = get_google_user_info(access_token)
         user, created = get_or_create_google_user(user_info)
 
+
         if created:
             invalidate_user_cache()
 
