@@ -1,4 +1,7 @@
+from importlib import invalidate_caches
 from typing import Dict, Tuple
+from django.core.cache import cache
+from django.conf import settings
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
 from django.contrib.auth import get_user_model
 from django.db import transaction
@@ -38,6 +41,10 @@ def build_auth_response(user: User, created: bool = False) -> dict:
 def normalize_email(email: str) -> str:
     return email.strip().lower()
 
+def invalidate_user_cache(pk=None):
+    cache.delete("users_list")
+    if pk:
+        cache.delete(f"user_{pk}")
 
 @transaction.atomic
 def get_or_create_google_user(user_info: dict) -> Tuple[User, bool]:
@@ -67,6 +74,7 @@ class RegisterView(generics.CreateAPIView):
 
     def create(self, request, *args, **kwargs):
         super().create(request, *args, **kwargs)
+        invalidate_user_cache()
         return Response(
             build_auth_response(self.user),
             status=status.HTTP_201_CREATED
@@ -79,9 +87,7 @@ class LoginView(APIView):
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
         user = serializer.validated_data["user"]
-
         return Response(build_auth_response(user))
 
 
@@ -90,16 +96,13 @@ class LogoutView(APIView):
 
     def post(self, request):
         refresh_token = request.data.get("refresh")
-
         if not refresh_token:
             raise ValidationError("Передайте refresh токен")
-
         try:
             token = RefreshToken(refresh_token)
             token.blacklist()
         except TokenError:
             raise ValidationError("Токен уже недействителен")
-
         return Response({"detail": "Успешный выход"})
 
 
@@ -110,11 +113,22 @@ class MeView(generics.RetrieveUpdateAPIView):
     def get_object(self):
         return self.request.user
 
+    def update(self, request, *args, **kwargs):
+        response = super().update(request, *args, **kwargs)
+        invalidate_user_cache(pk=request.user.id)
+        return response
 
 class UserListView(generics.ListAPIView):
-    queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsAdmin]
+
+    def get_queryset(self):
+        cache_key = "users_list"
+        users = cache.get(cache_key)
+        if users is None:
+            users = User.objects.all()
+            cache.set(cache_key, users, timeout=settings.CACHE_TTL)
+        return users
 
 
 class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -122,6 +136,24 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = UserSerializer
     permission_classes = [IsAdmin]
 
+    def get_queryset(self):
+        return User.objects.all()
+
+    def get_object(self):
+        cache_key = f"user_{self.kwargs['pk']}"
+        user = cache.get(cache_key)
+        if user is None:
+            user = super().get_object()
+            cache.set(cache_key, user, timeout=settings.CACHE_TTL)
+        return user
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        invalidate_user_cache(pk=instance.id)
+
+    def perform_destroy(self, instance):
+        invalidate_user_cache(pk=instance.id)
+        instance.delete()
 
 class DeactivateUserView(APIView):
     permission_classes = [IsModeratorOrAdmin]
@@ -137,6 +169,12 @@ class DeactivateUserView(APIView):
 
         user.is_active = False
         user.save(update_fields=["is_active"])
+
+        tokens = OutstandingToken.objects.filter(user=user)
+        for token in tokens:
+            BlacklistedToken.objects.get_or_create(token=token)
+
+        invalidate_user_cache(pk=pk)
 
         return Response({"detail": "Пользователь деактивирован"})
 
@@ -162,23 +200,8 @@ class GoogleCallbackView(APIView):
             raise ValidationError("Не удалось получить access_token")
         user_info = get_google_user_info(access_token)
         user, created = get_or_create_google_user(user_info)
+
+        if created:
+            invalidate_user_cache()
+
         return Response(build_auth_response(user, created))
-
-class DeactivateUserView(APIView):
-    permission_classes = [IsModeratorOrAdmin]
-
-    def post(self, request, pk):
-        try:
-            user = User.objects.get(pk=pk)
-        except User.DoesNotExist:
-            return Response({"detail": "Не найден"}, status=404)
-
-        user.is_active = False
-        user.save(update_fields=["is_active"])
-
-        tokens = OutstandingToken.objects.filter(user=user)
-
-        for token in tokens:
-            BlacklistedToken.objects.get_or_create(token=token)
-
-        return Response({"detail": "Пользователь деактивирован"})
