@@ -114,4 +114,4 @@ CACHES = {
     }
 }
 
-CACHE_TTL = 60 * 15x`
+CACHE_TTL = 60 * 15
