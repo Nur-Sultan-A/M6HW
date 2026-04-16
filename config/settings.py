@@ -131,7 +131,7 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": crontab(hour=0, minute=0),
     },
     "refresh-users-cache": {
-        "task": "users.tasks.refresh.users_cache",
-        "schedule": crontab(minute="*10"),
+        "task": "users.tasks.refresh_users_cache",
+        "schedule": crontab(minute="*/10"),
     },
 }

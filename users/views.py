@@ -11,6 +11,7 @@ from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
+from .tasks import send_welcome_email
 
 from .serializers import RegisterSerializer, LoginSerializer, UserSerializer
 from .permissions import IsAdmin, IsOwnerOrAdmin, IsModeratorOrAdmin
@@ -75,6 +76,9 @@ class RegisterView(generics.CreateAPIView):
     def create(self, request, *args, **kwargs):
         super().create(request, *args, **kwargs)
         invalidate_user_cache()
+
+        send_welcome_email.delay(self.user.id)
+
         return Response(
             build_auth_response(self.user),
             status=status.HTTP_201_CREATED
