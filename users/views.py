@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
-from .tasks import send_welcome_email
+from .tasks import send_welcome_email, send_deactivation_email
 
 from .serializers import RegisterSerializer, LoginSerializer, UserSerializer
 from .permissions import IsAdmin, IsOwnerOrAdmin, IsModeratorOrAdmin
@@ -179,6 +179,8 @@ class DeactivateUserView(APIView):
             BlacklistedToken.objects.get_or_create(token=token)
 
         invalidate_user_cache(pk=pk)
+
+        send_deactivation_email.delay(user.id)
 
         return Response({"detail": "Пользователь деактивирован"})
 
