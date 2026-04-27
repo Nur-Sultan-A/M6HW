@@ -1,0 +1,16 @@
+pycache/
+*.pyc
+
+.git
+.gitignore
+
+.env
+
+db.sqlite3
+
+.dockerignore
+docker-compose.yml
+
+.vscode/
+.idea/
+

@@ -12,9 +12,11 @@ SECRET_KEY = config("SECRET_KEY", default="unsafe-secret-key")
 
 DEBUG = config("DEBUG", default=True, cast=bool)
 
-ALLOWED_HOSTS = [
-    host for host in config("ALLOWED_HOSTS", default="").split(",") if host
-]
+ALLOWED_HOSTS = config(
+    "ALLOWED_HOSTS",
+    default="localhost, 127.0.0.1",
+    cast=lambda v: [s.strip() for s in v.split(",")]
+)
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -67,6 +69,16 @@ DATABASES = {
         "NAME": BASE_DIR / "db.sqlite3",
     }
 }
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.postgresql",
+#         "NAME": config("DB_NAME"),
+#         "USER": config("DB_USER"),
+#         "PASSWORD": config("DB_PASSWORD"),
+#         "HOST": config("DB_HOST", default="localhost"),
+#         "PORT": config("DB_PORT", default="5432"),
+#     }
+# }
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -82,6 +94,11 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "/static/"
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
@@ -107,7 +124,7 @@ GOOGLE_REDIRECT_URI = config("GOOGLE_REDIRECT_URI", default="")
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://127.0.0.1:6379/0",
+        "LOCATION": "redis://redis:6379/0",
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient"
         }
@@ -116,8 +133,8 @@ CACHES = {
 
 CACHE_TTL = 60 * 15
 
-CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
-CELERY_RESULT_BACKEND = "redis://127.0.0.1:6379/0"
+CELERY_BROKER_URL = "redis://redis:6379/0"
+CELERY_RESULT_BACKEND = "redis://redis:6379/0"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
